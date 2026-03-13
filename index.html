@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TALKNIK DOREMON | Official Game</title>
+    <style>
+        :root {
+            --talknik-blue: #00d2ff;
+            --talknik-dark: #0f172a;
+            --accent-yellow: #ffcc00;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+
+        body {
+            background-color: var(--talknik-dark);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            user-select: none;
+        }
+
+        /* --- Branded Header --- */
+        .header {
+            height: 70px;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-bottom: 2px solid var(--talknik-blue);
+            box-shadow: 0 0 15px var(--talknik-blue);
+            z-index: 10;
+        }
+
+        .stat { text-align: center; }
+        .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--talknik-blue); }
+        .stat-value { font-size: 20px; font-weight: 800; }
+
+        /* --- Game Area --- */
+        #game-canvas {
+            width: 100%;
+            height: calc(100vh - 70px);
+            position: relative;
+            background: radial-gradient(circle, #1e293b, #0f172a);
+            overflow: hidden;
+        }
+
+        /* --- Branded Doraemon Character --- */
+        .character {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+            z-index: 5;
+            filter: drop-shadow(0 0 10px var(--talknik-blue));
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .character:active { transform: scale(0.8); }
+
+        /* --- Floating Bonus --- */
+        .doracake {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: #d2691e;
+            border-radius: 50%;
+            border: 3px solid #5d2e0a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            font-weight: bold;
+            box-shadow: 0 0 10px #ffcc00;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        /* --- Branded Overlay Screens --- */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .brand-title {
+            font-size: 40px;
+            font-weight: 900;
+            color: white;
+            letter-spacing: -1px;
+            margin-bottom: 5px;
+        }
+
+        .brand-title span { color: var(--talknik-blue); }
+
+        .btn-start {
+            background: var(--talknik-blue);
+            color: var(--talknik-dark);
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 25px;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px var(--talknik-blue);
+        }
+
+        .footer-tag {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #64748b;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="overlay">
+        <h1 class="brand-title">TALKNIK <span>DOREMON</span></h1>
+        <p style="opacity: 0.7;">The Ultimate Catching Challenge</p>
+        <button class="btn-start" onclick="startGame()">Start Mission</button>
+        <div class="footer-tag">DEVELOPED BY TALKNIK IT</div>
+    </div>
+
+    <div id="game-over" class="overlay" style="display: none;">
+        <h1 style="color: #ff4757; font-size: 50px;">MISSION ENDED</h1>
+        <p id="final-score" style="font-size: 24px; margin: 15px 0;">Score: 0</p>
+        <button class="btn-start" onclick="location.reload()">Reboot Game</button>
+    </div>
+
+    <div class="header">
+        <div class="stat">
+            <div class="stat-label">Points</div>
+            <div id="score" class="stat-value">00</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Remaining</div>
+            <div id="timer" class="stat-value">30s</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Best</div>
+            <div id="best" class="stat-value">00</div>
+        </div>
+    </div>
+
+    <div id="game-canvas">
+        <div id="target" class="character" style="display: none;">
+            <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="48" fill="#00d2ff" />
+                <circle cx="50" cy="55" r="38" fill="#ffffff" />
+                <circle cx="40" cy="35" r="8" fill="white" stroke="#000" stroke-width="1"/>
+                <circle cx="60" cy="35" r="8" fill="white" stroke="#000" stroke-width="1"/>
+                <circle cx="50" cy="45" r="5" fill="#ff4757" />
+                <path d="M 35 65 Q 50 80 65 65" fill="none" stroke="#000" stroke-width="2" />
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let timeLeft = 30;
+        let isRunning = false;
+        let highscore = localStorage.getItem('talknik_best') || 0;
+
+        const target = document.getElementById('target');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const bestDisplay = document.getElementById('best');
+        const canvas = document.getElementById('game-canvas');
+
+        bestDisplay.innerText = highscore;
+
+        // --- Pro Audio System ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function sfx(freq, type, dur) {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+            osc.connect(g);
+            g.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            target.style.display = 'block';
+            isRunning = true;
+            spawn();
+            spawnBonus();
+            
+            const clock = setInterval(() => {
+                timeLeft--;
+                timerDisplay.innerText = timeLeft + "s";
+                if(timeLeft <= 0) {
+                    clearInterval(clock);
+                    gameOver();
+                }
+            }, 1000);
+        }
+
+        function spawn() {
+            if(!isRunning) return;
+            const x = Math.random() * (canvas.clientWidth - 80);
+            const y = Math.random() * (canvas.clientHeight - 80);
+            target.style.left = x + 'px';
+            target.style.top = y + 'px';
+        }
+
+        function spawnBonus() {
+            if(!isRunning) return;
+            const cake = document.createElement('div');
+            cake.className = 'doracake';
+            cake.innerText = "BONUS";
+            cake.style.left = Math.random() * (canvas.clientWidth - 50) + 'px';
+            cake.style.top = Math.random() * (canvas.clientHeight - 50) + 'px';
+            canvas.appendChild(cake);
+
+            cake.onclick = () => {
+                score += 50;
+                scoreDisplay.innerText = score;
+                sfx(880, 'triangle', 0.3);
+                cake.remove();
+            };
+            setTimeout(() => { cake.remove(); if(isRunning) spawnBonus(); }, 2500);
+        }
+
+        target.addEventListener('mousedown', () => {
+            if(!isRunning) return;
+            score += 10;
+            scoreDisplay.innerText = score;
+            sfx(523.25, 'sine', 0.1);
+            if(navigator.vibrate) navigator.vibrate(30);
+            spawn();
+        });
+
+        function gameOver() {
+            isRunning = false;
+            target.style.display = 'none';
+            document.getElementById('game-over').style.display = 'flex';
+            document.getElementById('final-score').innerText = "Mission Score: " + score;
+            
+            if(score > highscore) {
+                localStorage.setItem('talknik_best', score);
+            }
+            sfx(110, 'sawtooth', 0.5);
+        }
+    </script>
+</body>
+</html>
